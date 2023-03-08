@@ -1,9 +1,13 @@
 import streamlit as st
-from .process import construct_prompt, COMPLETIONS_API_PARAMS, count_tokens
+from .process import get_document, COMPLETIONS_API_PARAMS, count_tokens
 import openai
 import re
 import os
+import pandas as pd
 
+st.session_state.message = [
+    {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
+]
 REPLACE_API_PARAMS = COMPLETIONS_API_PARAMS.copy()
 
 def key_input():
@@ -37,12 +41,19 @@ def parse_response(response, used):
                 response = response.replace(link, f'<iframe src="{link}" width="640" height="360" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>')
     return response
 
+def df_history(data: list):
+    roles, contents = [{k: [d[k].replace('\n', r'\n') for d in data]} for k in ['role', 'content']]
+    roles.update(contents)
+    
+    return pd.DataFrame(roles, index = range(1, len(data) + 1))
+
 def main():
     key = os.environ.get('OPENAI_KEY')
     if key is not None:
         openai.api_key = key
         st.success('**Key** hiện có thể sử dụng, không cần nhập **Key** thay thế!')
     else:
+        
         st.error('Không có **Key**, vui lòng nhập **Key** thay thế!')
     key_input()
     param_input()
@@ -57,45 +68,45 @@ def main():
     
     default_value = 'Các gói sản phẩm SME?'
     question = st.text_input('Câu hỏi:', default_value)
+    with st.expander('Messages', False):
+        message = st.empty()
+        message.dataframe(df_history(st.session_state.message), use_container_width = True)
     with st.expander('Context', False):
-        stindex = st.empty()
         context = st.empty()
-        stindex.subheader('')
         context.markdown('')
+    if st.button('Reset context'):
+        st.session_state.message = [
+            {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
+        ]
+        
     st.write('Trả lời:')
     answer = st.empty()
     answer.markdown('')
     
-    info = construct_prompt(question)
-    prompt, index, _ = info
-    stindex.subheader(index[0])
+    info = get_document(question)
+    index, document = info
     
-    context.markdown(prompt)
-    cont = st.checkbox('Trả lời tiếp')
+    context.markdown('# ' + index + '\n\n' + document)
     if st.button('Lấy câu trả lời'):
-        if cont:
-            info = construct_prompt(question)
-            prompt, index, _ = info
-            prompt = info[0] + st.session_state.p
-            tokens = count_tokens(prompt)
-            response = st.session_state.p
-        else:
-            response = ''
-            tokens = count_tokens(prompt)
-        REPLACE_API_PARAMS['max_tokens'] = 4096 - tokens
-        stindex.subheader(index[0])
+        st.session_state.message.append({'role': 'system', 'content': f'MISA:\n{document}'})
+        st.session_state.message.append({'role': 'user', 'content': question})
+        message.dataframe(df_history(st.session_state.message), use_container_width = True)
+        num_tokens = sum([count_tokens(v['content']) for v in st.session_state.message])
+        REPLACE_API_PARAMS['max_tokens'] = int(4000 - num_tokens)
         used = []
         with st.spinner('Đang sinh câu trả lời...'):
-            for resp in openai.Completion.create(prompt = prompt, **REPLACE_API_PARAMS):
-                tokens += 1
-                response += resp.choices[0].text
+            response = ''
+            # REPLACE_API_PARAMS.pop('max_tokens')
+            for resp in openai.ChatCompletion.create(messages = st.session_state.message, **REPLACE_API_PARAMS):
+                num_tokens += 1
+                response += resp.choices[0].delta.content if resp.choices[0].delta.get('content') else ''
                 response = parse_response(response, used)
-                st.session_state.p = response
                 try:
                     answer.markdown(response, unsafe_allow_html = True)
                 except:
                     pass
-        st.success(f'Đã tạo xong câu trả lời gồm {tokens} tokens tiêu tốn {0.02 * tokens / 1000}$')
+        st.session_state.message.append({'role': 'assistant', 'content': response})
+        st.success(f'Đã tạo xong câu trả lời gồm {num_tokens} tokens tiêu tốn {0.02 * num_tokens / 1000}$')
 
     
 if __name__ == '__main__':
