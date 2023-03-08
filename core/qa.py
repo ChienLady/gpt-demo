@@ -63,20 +63,20 @@ def main():
         unsafe_allow_html = True,
     )
     if 'message' not in st.session_state:
-        st.session_state.message = [
+        st.session_state['message'] = [
             {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
         ]
     
     default_value = 'Các gói sản phẩm SME?'
     question = st.text_input('Câu hỏi:', default_value)
     with st.expander('Messages', False):
-        message = st.empty()
-        message.dataframe(df_history(st.session_state.message), use_container_width = True)
+        message_container = st.empty()
+        message_container.dataframe(df_history(st.session_state.message), use_container_width = True)
     with st.expander('Context', False):
         context = st.empty()
         context.markdown('')
     if st.button('Reset context'):
-        st.session_state.message = [
+        st.session_state['message'] = [
             {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
         ]
         
@@ -91,7 +91,7 @@ def main():
     if st.button('Lấy câu trả lời'):
         st.session_state.message.append({'role': 'system', 'content': f'MISA:\n{document}'})
         st.session_state.message.append({'role': 'user', 'content': question})
-        message.dataframe(df_history(st.session_state.message), use_container_width = True)
+        message_container.dataframe(df_history(st.session_state.message), use_container_width = True)
         num_tokens = sum([count_tokens(v['content']) for v in st.session_state.message])
         REPLACE_API_PARAMS['max_tokens'] = int(4000 - num_tokens)
         used = []
