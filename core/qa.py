@@ -4,10 +4,7 @@ import openai
 import re
 import os
 import pandas as pd
-
-st.session_state.message = [
-    {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
-]
+    
 REPLACE_API_PARAMS = COMPLETIONS_API_PARAMS.copy()
 
 def key_input():
@@ -65,6 +62,10 @@ def main():
         ''',
         unsafe_allow_html = True,
     )
+    if 'message' not in st.session_state:
+        st.session_state.message = [
+            {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
+        ]
     
     default_value = 'Các gói sản phẩm SME?'
     question = st.text_input('Câu hỏi:', default_value)
