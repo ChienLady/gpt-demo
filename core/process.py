@@ -30,6 +30,9 @@ COMPLETIONS_API_PARAMS = {
 with open('doc_embeddings.pickle', 'rb') as handle:
     document_embeddings = pickle.load(handle)
 
+def get_products():
+    return list(df['products'].unique())
+
 def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> List[float]:
     result = openai.Embedding.create(
       model = model,
@@ -40,18 +43,22 @@ def get_embedding(text: str, model: str = EMBEDDING_MODEL) -> List[float]:
 def vector_similarity(x: List[float], y: List[float]) -> float:
     return np.dot(np.array(x), np.array(y)) / (np.linalg.norm(np.array(x)) * np.linalg.norm(np.array(y)))
 
-def order_document_sections_by_query_similarity(query: str, document_embeddings: Dict[Tuple[str, str], np.ndarray]) -> List[Tuple[float, Tuple[str, str]]]:
+def order_document_sections_by_query_similarity(query: str, product, document_embeddings: Dict[Tuple[str, str], np.ndarray]) -> List[Tuple[float, Tuple[str, str]]]:
     query_embedding = get_embedding(query)
     
-    document_similarities = sorted([
-        (vector_similarity(query_embedding, doc_embedding), doc_index) for doc_index, doc_embedding in document_embeddings.items()
-    ], reverse = True)
+    if product is None:
+        document_similarities = sorted([
+            (vector_similarity(query_embedding, doc_embedding), doc_index) for doc_index, doc_embedding in document_embeddings.items() 
+        ], reverse = True)
+    else:
+        document_similarities = sorted([
+            (vector_similarity(query_embedding, doc_embedding), doc_index) for doc_index, doc_embedding in document_embeddings.items() if doc_index[0] == product
+        ], reverse = True)
     
     return document_similarities
 
-def get_document(question: str, context_embeddings: dict = document_embeddings, df: pd.DataFrame = df) -> str:
-    most_relevant_document_sections = order_document_sections_by_query_similarity(question, context_embeddings)
-    q_tokens = count_tokens(question)
+def get_document(question: str, product = None, context_embeddings: dict = document_embeddings, df: pd.DataFrame = df) -> str:
+    most_relevant_document_sections = order_document_sections_by_query_similarity(question, product, context_embeddings)
     
     for _, section_index in most_relevant_document_sections:
         idx = df.index[(df['products'] == section_index[0]) & (df['indexes'] == section_index[1])][0]   

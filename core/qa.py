@@ -1,5 +1,5 @@
 import streamlit as st
-from .process import get_document, COMPLETIONS_API_PARAMS, count_tokens
+from .process import get_document, COMPLETIONS_API_PARAMS, count_tokens, get_products
 import openai
 import re
 import os
@@ -62,6 +62,16 @@ def main():
         ''',
         unsafe_allow_html = True,
     )
+    
+    opts = ['Tất cả']
+    opts.extend(get_products())
+    product = st.selectbox(
+        'Chọn sản phẩm',
+        opts
+    )
+    if product == 'Tất cả':
+        product = None
+        
     if 'message' not in st.session_state:
         st.session_state['message'] = [
             {'role': 'system', 'content': 'Hướng dẫn: Trả lời chi tiết dựa vào tri thức (chỉ đưa ra link http và ký tự "\\n" nếu có trong tri thức của MISA)\nChú ý: Nếu câu trả lời không ở trong tri thức MISA, tự trả lời theo tri thức của mình.'}
@@ -84,7 +94,7 @@ def main():
     answer = st.empty()
     answer.markdown('')
     
-    info = get_document(question)
+    info = get_document(question, product)
     index, document = info
     
     context.markdown('# ' + index + '\n\n' + document)
