@@ -54,7 +54,7 @@ def main():
         openai.api_key = key
         st.success('**Key** hiện có thể sử dụng, không cần nhập **Key** thay thế!')
     else:
-        openai.api_key = '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'
+        
         st.error('Không có **Key**, vui lòng nhập **Key** thay thế!')
     key_input()
     param_input()
