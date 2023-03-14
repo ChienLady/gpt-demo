@@ -4,8 +4,12 @@ import openai
 import re
 import os
 import pandas as pd
+import uuid
     
 REPLACE_API_PARAMS = COMPLETIONS_API_PARAMS.copy()
+
+if 'id' not in st.session_state:
+    st.session_state['id'] = uuid.uuid4()
 
 def key_input():
     rkey = st.sidebar.text_input('OpenAI Key')
@@ -50,7 +54,7 @@ def main():
         openai.api_key = key
         st.success('**Key** hiện có thể sử dụng, không cần nhập **Key** thay thế!')
     else:
-        
+        openai.api_key = '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'
         st.error('Không có **Key**, vui lòng nhập **Key** thay thế!')
     key_input()
     param_input()
